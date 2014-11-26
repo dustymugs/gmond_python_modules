@@ -164,14 +164,24 @@ def metric_handler(name):
 
 # Metric descriptors are initialized here 
 def metric_init(params):
-    HOST = str(params.get('host'))
-    PORT = str(params.get('port'))
-    DB = str(params.get('dbname'))
-    USER = str(params.get('username'))
-    PASSWORD = str(params.get('password'))
-    
+
+    dsn = dict(
+        host=None,
+        port=None,
+        dbname=None,
+        user=None,
+        password=None,
+        sslmode=None
+    )
+    for key in dsn.keys():
+        dsn[key] = params.get(key, None)
+
     global pgdsn
-    pgdsn = "dbname=" + DB + " host=" + HOST + " user=" + USER + " port=" + PORT + " password=" + PASSWORD
+    pgdsn = ' '.join([
+        key + '=' + val
+        for key, val in dsn.iteritems()
+        if val is not None
+    ])
 
     descriptors = [
         {'name':'Pypg_idle_sessions','units':'Sessions','slope':'both','description':'PG Idle Sessions'},

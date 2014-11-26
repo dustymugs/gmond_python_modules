@@ -11,11 +11,14 @@ modules {
      param dbname {
        value = "database_goes_here"
      }
-     param username {
+     param user {
        value = "username_goes_here"
      }
      param password {
        value = "password_goes_here"
+     }
+     param sslmod {
+       value = "disable"
      }
    }
 }
