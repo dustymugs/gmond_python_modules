@@ -226,7 +226,7 @@ def metric_cleanup():
 
 # this code is for debugging and unit testing    
 if __name__ == '__main__':
-    descriptors = metric_init({"host":"hostname_goes_here","port":"port_goes_here","dbname":"database_name_goes_here","username":"username_goes_here","password":"password_goes_here"})
+    descriptors = metric_init({"host":"hostname_goes_here","port":"port_goes_here","dbname":"database_name_goes_here","user":"username_goes_here","password":"password_goes_here"})
     while True:
         for d in descriptors:
             v = d['call_back'](d['name'])
