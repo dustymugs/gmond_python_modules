@@ -1,0 +1,82 @@
+modules {
+  module {
+    name = "pgbouncer"
+    language = "python"
+
+    param host {
+      value = "hostname_goes_here"
+    }
+    param port {
+      value = "port_goes_here"
+    }
+    param user {
+      value = "username_goes_here"
+    }
+    param password {
+      value = "password_goes_here"
+    }
+    param sslmod {
+      value = "disable"
+    }
+
+    # specify the databases to include for stats collection
+    # leave empty for all databases
+    # e.g. value = "db1 db2 sandbox postgres"
+    param databases {
+      value = ""
+    }
+
+  }
+}
+
+collection_group {
+  collect_every = 30
+  time_threshold = 60
+
+  #
+  # SHOW POOLS
+  #
+
+  # count of currently active client connections
+  metric {
+      name_match = "pool_cl_active_(.+)"
+      value_threshold = 1.0
+  }
+  # count of currently waiting client connections
+  metric {
+      name_match = "pool_cl_waiting_(.+)"
+      value_threshold = 1.0
+  }
+
+  # count of currently active server connections
+  metric {
+      name_match = "pool_sv_active_(.+)"
+      value_threshold = 1.0
+  }
+  # count of currently idle server connections
+  metric {
+      name_match = "pool_sv_idle_(.+)"
+      value_threshold = 1.0
+  }
+  # count of currently used server connections
+  metric {
+      name_match = "pool_sv_used_(.+)"
+      value_threshold = 1.0
+  }
+  # count of currently tested server connections
+  metric {
+      name_match = "pool_sv_tested_(.+)"
+      value_threshold = 1.0
+  }
+  # count of server connections currently logged into PostgreSQL
+  metric {
+      name_match = "pool_sv_login_(.+)"
+      value_threshold = 1.0
+  }
+
+  # how long the first (oldest) client in queue has waited, in seconds
+  metric {
+      name_match = "pool_maxwait_(.+)"
+      value_threshold = 1.0
+  }
+}
