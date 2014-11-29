@@ -6,7 +6,7 @@ import copy
 _DSN = None
 _DATABASES = None
 _POOLS = None
-
+_DBDELTAS = None
 _POOL_KEY = '%s_%s'
 
 class Cache(object):
@@ -41,11 +41,87 @@ def get_metrics():
     '''
     update metrics dict with their values based on cache interval
     '''
-    print "in get_metrics"
+
+    global _DBDELTAS
 
     metrics = {}
 
+    if _DBDELTAS is None:
+        _DBDELTAS = {}
+        new_deltas = True
+    else:
+        new_deltas = False
+
     cursor = get_cursor()
+
+    #
+    # db stats
+    #
+    cursor.execute('SHOW STATS;')
+    recordset = cursor.fetchall()
+
+    found_databases = []
+    for record in recordset:
+
+        database, \
+            total_requests, total_received, total_sent, total_query_time, \
+            avg_req, avg_recv, avg_sent, avg_query = record
+
+        # check that database is in list of databases
+        if database not in _DATABASES:
+            continue
+
+        found_databases.append(database)
+
+        # deltas for totals
+        if new_deltas:
+            _DBDELTAS['stats_total_request_%s' % database] = total_requests
+            _DBDELTAS['stats_total_received_%s' % database] = total_received
+            _DBDELTAS['stats_total_sent_%s' % database] = total_sent
+            _DBDELTAS['stats_total_query_time_%s' % database] = total_query_time
+        
+        metrics['stats_total_request_%s' % database] = \
+            total_requests - _DBDELTAS['stats_total_request_%s' % database]
+        metrics['stats_total_received_%s' % database] = \
+            total_received - _DBDELTAS['stats_total_received_%s' % database]
+        metrics['stats_total_sent_%s' % database] = \
+            total_sent - _DBDELTAS['stats_total_sent_%s' % database]
+        metrics['stats_total_query_time_%s' % database] = \
+            total_query_time - _DBDELTAS['stats_total_query_time_%s' % database]
+
+        _DBDELTAS['stats_total_request_%s' % database] = total_requests
+        _DBDELTAS['stats_total_received_%s' % database] = total_received
+        _DBDELTAS['stats_total_sent_%s' % database] = total_sent
+        _DBDELTAS['stats_total_query_time_%s' % database] = total_query_time
+
+        metrics['stats_avg_req_%s' % database] = avg_req
+        metrics['stats_avg_recv_%s' % database] = avg_recv
+        metrics['stats_avg_sent_%s' % database] = avg_sent
+        metrics['stats_avg_query_%s' % database] = avg_query
+
+    # fill in unfound databases
+    for database in _DATABASES:
+        if database in found_databases:
+            continue
+
+        _DBDELTAS['stats_total_request_%s' % database] = 0
+        _DBDELTAS['stats_total_received_%s' % database] = 0
+        _DBDELTAS['stats_total_sent_%s' % database] = 0
+        _DBDELTAS['stats_total_query_time_%s' % database] = 0
+
+        metrics['stats_total_request_%s' % database] = 0
+        metrics['stats_total_received_%s' % database] = 0
+        metrics['stats_total_sent_%s' % database] = 0
+        metrics['stats_total_query_time_%s' % database] = 0
+
+        metrics['stats_avg_req_%s' % database] = 0
+        metrics['stats_avg_recv_%s' % database] = 0
+        metrics['stats_avg_sent_%s' % database] = 0
+        metrics['stats_avg_query_%s' % database] = 0
+
+    #
+    # pools
+    #
 
     cursor.execute('SHOW POOLS;')
     recordset = cursor.fetchall()
@@ -121,13 +197,15 @@ def _init_databases(params):
     filtered_databases = params.get('databases', [])
     len_filtered = len(filtered_databases)
 
+    cursor = get_cursor()
     cursor.execute('SHOW DATABASES;')
     recordset = cursor.fetchall()
 
     _DATABASES = []
     for record in recordset:
 
-        name, host, port, database, force_user, pool_size = record
+        name, host, port, database, force_user, pool_size, reserve_pool = \
+            record
 
         if (
             len_filtered < 1 or
@@ -145,7 +223,6 @@ def _init_pools(params):
     len_filtered = len(filtered_databases)
 
     cursor = get_cursor()
-
     cursor.execute('SHOW POOLS;')
     recordset = cursor.fetchall()
 
@@ -169,15 +246,157 @@ def _init_pools(params):
 
     cursor.close()
 
+def _create_descriptor(template, override):
+    d = copy.deepcopy(template)
+    for k, v in override.iteritems():
+        d[k] = v
+    return d
+
+def _init_dbstats_descriptors(descriptors, template):
+
+    template = copy.deepcopy(template)
+    template['groups'] = 'pgBouncerStats'
+
+    for db in _DATABASES:
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'stats_total_request_%s' % db,
+                'units': '# of SQL requests',
+                'description': 'total number of SQL requests pooled by pgbouncer since last access'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'stats_total_received_%s' % db,
+                'units': 'bytes',
+                'description': 'total volume in bytes of network traffic received by pgbouncer since last access'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'stats_total_sent_%s' % db,
+                'units': 'bytes',
+                'description': 'total volume in bytes of network traffic sent by pgbouncer since last access'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'stats_total_query_time_%s' % db,
+                'units': 'microseconds',
+                'description': 'total number of microseconds spent by pgbouncer when actively connected to PostgreSQL since last access'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'stats_avg_req_%s' % db,
+                'units': '# of SQL requests',
+                'description': 'average requests per second in last stat period'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'stats_avg_recv_%s' % db,
+                'units': 'bytes/second',
+                'description': 'average received (from clients) bytes per second'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'stats_avg_sent_%s' % db,
+                'units': 'bytes/second',
+                'description': 'average sent (to clients) bytes per second'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'stats_avg_query_%s' % db,
+                'units': 'milliseconds',
+                'description': 'average query duration in milliseconds'
+            }
+        ))
+
+def _init_pool_descriptors(descriptors, template):
+
+    template = copy.deepcopy(template)
+    template['groups'] = 'pgBouncerPools'
+
+    for pool in _POOLS.keys():
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'pool_cl_active_%s' % pool,
+                'units': '# of connections',
+                'description': 'count of currently active client connections'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'pool_cl_waiting_%s' % pool,
+                'units': '# of connections',
+                'description': 'count of currently waiting client connections'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'pool_sv_active_%s' % pool,
+                'units': '# of connections',
+                'description': 'count of currently active server connections'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'pool_sv_idle_%s' % pool,
+                'units': '# of connections',
+                'description': 'count of currently idle server connections'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'pool_sv_used_%s' % pool,
+                'units': '# of connections',
+                'description': 'count of currently used server connections'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'pool_sv_tested_%s' % pool,
+                'units': '# of connections',
+                'description': 'count of currently tested server connections'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'pool_sv_login_%s' % pool,
+                'units': '# of connections',
+                'description': 'count of server connections currently logged into PostgreSQL'
+            }
+        ))
+
+        descriptors.append(_create_descriptor(
+            template, {
+                'name': 'pool_maxwait_%s' % pool,
+                'units': 'seconds',
+                'description': 'how long the first (oldest) client in queue has waited, in seconds'
+            }
+        ))
+
 def _init_descriptors():
 
     global _DESCRIPTORS
-
-    def _create_descriptor(template, override):
-        d = copy.deepcopy(template)
-        for k, v in override.iteritems():
-            d[k] = v
-        return d
 
     _template = dict(
         name='XYZ',
@@ -189,71 +408,9 @@ def _init_descriptors():
     )
 
     _DESCRIPTORS = []
-    for pool in _POOLS.keys():
 
-        _DESCRIPTORS.append(_create_descriptor(
-            _template, {
-                'name': 'pool_cl_active_%s' % pool,
-                'units': '# of connections',
-                'description': 'count of currently active client connections'
-            }
-        ))
-
-        _DESCRIPTORS.append(_create_descriptor(
-            _template, {
-                'name': 'pool_cl_waiting_%s' % pool,
-                'units': '# of connections',
-                'description': 'count of currently waiting client connections'
-            }
-        ))
-
-        _DESCRIPTORS.append(_create_descriptor(
-            _template, {
-                'name': 'pool_sv_active_%s' % pool,
-                'units': '# of connections',
-                'description': 'count of currently active server connections'
-            }
-        ))
-
-        _DESCRIPTORS.append(_create_descriptor(
-            _template, {
-                'name': 'pool_sv_idle_%s' % pool,
-                'units': '# of connections',
-                'description': 'count of currently idle server connections'
-            }
-        ))
-
-        _DESCRIPTORS.append(_create_descriptor(
-            _template, {
-                'name': 'pool_sv_used_%s' % pool,
-                'units': '# of connections',
-                'description': 'count of currently used server connections'
-            }
-        ))
-
-        _DESCRIPTORS.append(_create_descriptor(
-            _template, {
-                'name': 'pool_sv_tested_%s' % pool,
-                'units': '# of connections',
-                'description': 'count of currently tested server connections'
-            }
-        ))
-
-        _DESCRIPTORS.append(_create_descriptor(
-            _template, {
-                'name': 'pool_sv_login_%s' % pool,
-                'units': '# of connections',
-                'description': 'count of server connections currently logged into PostgreSQL'
-            }
-        ))
-
-        _DESCRIPTORS.append(_create_descriptor(
-            _template, {
-                'name': 'pool_maxwait_%s' % pool,
-                'units': 'seconds',
-                'description': 'how long the first (oldest) client in queue has waited, in seconds'
-            }
-        ))
+    _init_dbstats_descriptors(_DESCRIPTORS, _template)
+    _init_pool_descriptors(_DESCRIPTORS, _template)
 
     return _DESCRIPTORS
 
@@ -264,7 +421,7 @@ def metric_init(params):
     _init_dsn(params)
 
     # init databases
-    #_init_databases(params)
+    _init_databases(params)
 
     # init pools
     _init_pools(params)
@@ -283,10 +440,10 @@ def metric_cleanup():
 if __name__ == '__main__':
 
     descriptors = metric_init({
-        "host":"10.0.1.70",
-        "port":"6432",
-        "user":"alpine_webapp",
-        "password":"501second",
+        "host":"host_here",
+        "port":"port_here",
+        "user":"user_here",
+        "password":"password_here",
         "sslmode": "disable",
         "databases": ""
     })
@@ -296,4 +453,3 @@ if __name__ == '__main__':
             v = d['call_back'](d['name'])
             print 'value for %s is %u' % (d['name'],  v)
         time.sleep(5)
-

@@ -34,6 +34,58 @@ collection_group {
   time_threshold = 60
 
   #
+  # SHOW STATS
+  # 
+
+  # total number of SQL requests pooled by pgbouncer since last access
+  metric {
+      name_match = "stats_total_request_(.+)"
+      value_threshold = 1.0
+  }
+
+  # total volume in bytes of network traffic received by pgbouncer since last access
+  metric {
+      name_match = "stats_total_received_(.+)"
+      value_threshold = 1.0
+  }
+
+  # total volume in bytes of network traffic sent by pgbouncer since last access
+  metric {
+      name_match = "stats_total_sent_(.+)"
+      value_threshold = 1.0
+  }
+
+  # total number of microseconds spent by pgbouncer when actively connected to PostgreSQL since last access
+  metric {
+      name_match = "stats_total_query_time_(.+)"
+      value_threshold = 1.0
+  }
+
+  # average requests per second in last stat period
+  metric {
+      name_match = "stats_avg_req_(.+)"
+      value_threshold = 1.0
+  }
+
+  # average received (from clients) bytes per second
+  metric {
+      name_match = "stats_avg_recv_(.+)"
+      value_threshold = 1.0
+  }
+
+  # average sent (to clients) bytes per second
+  metric {
+      name_match = "stats_avg_sent_(.+)"
+      value_threshold = 1.0
+  }
+
+  # average query duration in milliseconds
+  metric {
+      name_match = "stats_avg_query_(.+)"
+      value_threshold = 1.0
+  }
+
+  #
   # SHOW POOLS
   #
 
@@ -79,4 +131,5 @@ collection_group {
       name_match = "pool_maxwait_(.+)"
       value_threshold = 1.0
   }
+
 }
