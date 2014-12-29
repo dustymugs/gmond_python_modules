@@ -1,0 +1,158 @@
+modules {
+  module {
+    name = "redis-queue"
+    language = "python"
+
+    param host {
+      value = "hostname_goes_here"
+    }
+    param port {
+      value = "port_goes_here"
+    }
+    /*
+    param auth {
+      value = "password_goes_here"
+    }
+    */
+
+    # specify the databases for redis-queue
+    # leave empty for all databases
+    # e.g. value = "0 5 12"
+    param databases {
+      value = ""
+    }
+
+    # specify the queues for redis-queue
+    # leave empty for all queues
+    # e.g. value = "high low"
+    param queues {
+      value = ""
+    }
+
+  }
+}
+
+#
+# stats to capture
+#
+# # of databases
+# CONFIG GET databases
+#
+# per database
+#   number of workers
+#   number of queues
+#   number of jobs
+#
+#   per queue
+#     number of workers
+#     number of jobs
+#
+
+collection_group {
+  collect_every = 10
+  time_threshold = 60
+
+	#
+  # totals
+  #
+
+  #
+  # SHOW STATS
+  # 
+
+  # total number of SQL requests pooled by pgbouncer since last access
+  metric {
+      name_match = "stats_total_request(.+)"
+      value_threshold = 1.0
+  }
+
+  # total volume in bytes of network traffic received by pgbouncer since last access
+  metric {
+      name_match = "stats_total_received(.+)"
+      value_threshold = 1.0
+  }
+
+  # total volume in bytes of network traffic sent by pgbouncer since last access
+  metric {
+      name_match = "stats_total_sent(.+)"
+      value_threshold = 1.0
+  }
+
+  # total number of microseconds spent by pgbouncer when actively connected to PostgreSQL since last access
+  metric {
+      name_match = "stats_total_query_time(.+)"
+      value_threshold = 1.0
+  }
+
+  # average requests per second in last stat period
+  metric {
+      name_match = "stats_avg_req(.+)"
+      value_threshold = 1.0
+  }
+
+  # average received (from clients) bytes per second
+  metric {
+      name_match = "stats_avg_recv(.+)"
+      value_threshold = 1.0
+  }
+
+  # average sent (to clients) bytes per second
+  metric {
+      name_match = "stats_avg_sent(.+)"
+      value_threshold = 1.0
+  }
+
+  # average query duration in milliseconds
+  metric {
+      name_match = "stats_avg_query(.+)"
+      value_threshold = 1.0
+  }
+
+  #
+  # SHOW POOLS
+  #
+
+  # count of currently active client connections
+  metric {
+      name_match = "pool_cl_active(.+)"
+      value_threshold = 1.0
+  }
+  # count of currently waiting client connections
+  metric {
+      name_match = "pool_cl_waiting(.+)"
+      value_threshold = 1.0
+  }
+
+  # count of currently active server connections
+  metric {
+      name_match = "pool_sv_active(.+)"
+      value_threshold = 1.0
+  }
+  # count of currently idle server connections
+  metric {
+      name_match = "pool_sv_idle(.+)"
+      value_threshold = 1.0
+  }
+  # count of currently used server connections
+  metric {
+      name_match = "pool_sv_used(.+)"
+      value_threshold = 1.0
+  }
+  # count of currently tested server connections
+  metric {
+      name_match = "pool_sv_tested(.+)"
+      value_threshold = 1.0
+  }
+  # count of server connections currently logged into PostgreSQL
+  metric {
+      name_match = "pool_sv_login(.+)"
+      value_threshold = 1.0
+  }
+
+  # how long the first (oldest) client in queue has waited, in seconds
+  metric {
+      name_match = "pool_maxwait(.+)"
+      value_threshold = 1.0
+  }
+
+}
