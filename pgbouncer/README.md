@@ -3,7 +3,7 @@ pgBouncer metrics.
 
 Required Python modules:
 
-    * psycopg2
+  psycopg2
 
 Based upon Ganglia's postgresql module and network/multi_interface
 
