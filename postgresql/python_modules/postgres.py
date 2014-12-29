@@ -137,17 +137,18 @@ def pg_metrics_queries():
         'Pypg_blks_memread':blksmem})
 
     # table statistics returns one row that needs to be parsed
-    db_curs.execute(
-        'select sum(seq_tup_read), sum(idx_tup_fetch), \
-        extract(epoch from now() - min(last_vacuum))::int/60/60, \
-        extract(epoch from now() - min(last_analyze))::int/60/60 \
-        from pg_stat_all_tables;')
+    db_curs.execute("""
+    select sum(seq_tup_read), sum(idx_tup_fetch),
+        extract(epoch from now() - min(last_vacuum))::int/60/60,
+        extract(epoch from now() - min(last_analyze))::int/60/60
+        from pg_stat_all_tables;
+    """)
     results = db_curs.fetchall()
     pg_stat_table_values = results[0]
     seqscan = int(pg_stat_table_values[0])
     idxfetch = int(pg_stat_table_values[1])
-    hours_since_vacuum = int(pg_stat_table_values[2]) if pg_stat_table_values[2] != None else None
-    hours_since_analyze = int(pg_stat_table_values[3]) if pg_stat_table_values[3] != None else None
+    hours_since_vacuum = int(pg_stat_table_values[2]) if pg_stat_table_values[2] != None else 0
+    hours_since_analyze = int(pg_stat_table_values[3]) if pg_stat_table_values[3] != None else 0
     pg_metrics.update(
         {'Pypg_tup_seqscan':seqscan,
         'Pypg_tup_idxfetch':idxfetch,
