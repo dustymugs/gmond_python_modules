@@ -62,6 +62,7 @@ def get_metrics():
     recordset = cursor.fetchall()
 
     found_databases = []
+    _found_databases = [] # before formatting
     for record in recordset:
 
         database, \
@@ -72,6 +73,7 @@ def get_metrics():
         if database not in _DATABASES:
             continue
 
+        _found_databases.append(database)
         database = _DATABASE_KEY % database
         found_databases.append(database)
 
@@ -103,7 +105,7 @@ def get_metrics():
 
     # fill in unfound databases
     for database in _DATABASES:
-        if database in found_databases:
+        if database in _found_databases:
             continue
 
         database = _DATABASE_KEY % database
