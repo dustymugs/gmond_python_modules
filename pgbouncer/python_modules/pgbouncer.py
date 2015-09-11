@@ -64,9 +64,17 @@ def get_metrics():
     found_databases = []
     for record in recordset:
 
-        database, \
-            total_requests, total_received, total_sent, total_query_time, \
-            avg_req, avg_recv, avg_sent, avg_query = record
+        (
+            database,
+            total_requests,
+            total_received,
+            total_sent,
+            total_query_time,
+            avg_req,
+            avg_recv,
+            avg_sent,
+            avg_query
+        ) = record[:9]
 
         # check that database is in list of databases
         if database not in _DATABASES:
@@ -132,10 +140,18 @@ def get_metrics():
 
     for record in recordset:
 
-        database, user, \
-            cl_active, cl_waiting, \
-            sv_active, sv_idle, sv_used, sv_tested, sv_login, \
-            maxwait = record
+        (
+            database,
+            user,
+            cl_active,
+            cl_waiting,
+            sv_active,
+            sv_idle,
+            sv_used,
+            sv_tested,
+            sv_login,
+            maxwait
+        ) = record[:10]
 
         pool = _POOL_KEY % (database, user)
 
@@ -208,8 +224,15 @@ def _init_databases(params):
     _DATABASES = []
     for record in recordset:
 
-        name, host, port, database, force_user, pool_size, reserve_pool = \
-            record
+        (
+            name,
+            host,
+            port,
+            database,
+            force_user,
+            pool_size,
+            reserve_pool
+        ) = record[:7]
 
         if (
             len_filtered < 1 or
@@ -233,10 +256,18 @@ def _init_pools(params):
     _POOLS = {}
     for record in recordset:
 
-        database, user, \
-            cl_active, cl_waiting, \
-            sv_active, sv_idle, sv_used, sv_tested, sv_login, \
-            maxwait = record
+        (
+            database,
+            user,
+            cl_active,
+            cl_waiting,
+            sv_active,
+            sv_idle,
+            sv_used,
+            sv_tested,
+            sv_login,
+            maxwait
+        ) = record[:10]
 
         if (
             len_filtered < 1 or
